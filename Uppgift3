@@ -1,0 +1,30 @@
+.include "m328pdef.inc"
+.equ EOS = 0
+.cseg
+	ldi XL, low(mystring2)
+	ldi XH, high(mystring2)
+
+	ldi ZL, low(mystring*2)
+	ldi ZH, high(mystring*2)
+
+
+loop: 
+
+	lpm r16, Z+
+
+	st X+, r16
+
+	cpi r16, EOS
+
+	breq EOS
+
+	rjmp loop
+
+	
+
+mystring : .db "hello world", EOS
+.dseg
+.org SRAM_START
+mystring2: .byte 12
+
+
