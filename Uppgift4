@@ -22,16 +22,22 @@ reset:
 	rcall count
 
 count:
-cpi temp, 0
-	breq stop
-	dec temp
 
-	lsl paramreg
-	sbrs paramreg, 7
-	inc returnreg
+
+	cpi temp, 0 ; jämför temp och 0 
+	lsl paramreg ;shiftar left i registret paramreg
+
+	breq stop ; om temp = 0 hoppa till stop
+
+	dec temp ; minska temp
+
+
+	sbrs paramreg, 7 ;skippar nästa steg om paramreg är 7 (MSB)
+
+	inc returnreg ; ökar returnreg med 1 
+
 	rjmp count
 	
-
 
 stop:
 
