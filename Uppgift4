@@ -1,5 +1,5 @@
 .include "m328pdef.inc"
-.equ testvalue = 0b10000001
+.equ testvalue = 0b11111111
 .def returnreg = r16
 .def paramreg = r17
 .def temp = r18
@@ -25,16 +25,13 @@ count:
 
 
 	cpi temp, 0 ; jämför temp och 0 
+	breq stop ; om temp = 0 hoppa till stop
+	sbrs paramreg, 7 ;skippar nästa steg om paramreg är 7 (MSB)
+	inc returnreg ; ökar returnreg med 1 
 	lsl paramreg ;shiftar left i registret paramreg
 
-	breq stop ; om temp = 0 hoppa till stop
 
 	dec temp ; minska temp
-
-
-	sbrs paramreg, 7 ;skippar nästa steg om paramreg är 7 (MSB)
-
-	inc returnreg ; ökar returnreg med 1 
 
 	rjmp count
 	
