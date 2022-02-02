@@ -16,15 +16,15 @@ loop:
 
 	cpi r16, EOS
 
-	breq EOS
+	breq stop
 
 	rjmp loop
+stop:
 
-	
+	rjmp stop
 
 mystring : .db "hello world", EOS
 .dseg
 .org SRAM_START
 mystring2: .byte 12
-
 
