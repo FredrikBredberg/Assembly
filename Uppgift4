@@ -21,23 +21,21 @@ reset:
 	ldi paramreg, testvalue
 	rcall count
 
+
+
 count:
-
-
 	cpi temp, 0 ; jämför temp och 0 
-
-	breq stop ; om temp = 0 hoppa till stop
+	breq done ; om temp = 0 hoppa till stop
 
 	sbrs paramreg, 7 ;skippar nästa steg om paramreg är 7 (MSB)
 	inc returnreg ; ökar returnreg med 1 
 	lsl paramreg ;shiftar left i registret paramreg
-
 
 	dec temp ; minska temp
 
 	rjmp count
 	
 
-stop:
-
-	rjmp stop
+done:
+	ret 
+	
