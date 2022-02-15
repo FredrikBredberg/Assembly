@@ -1,0 +1,64 @@
+.include "m328pdef.inc"
+.cseg
+.org 0 
+
+rjmp RESET
+
+RESET:
+	nop
+	rjmp RESET
+
+  
+	//clr		r16				; alla bitar i register r16 sätts till noll
+	// out		DDRD, r16		; alla pinnar på port D sätts till ingångar
+	ser		r16				; alla bitar i register r16 sätts till ett
+	out		DDRD, r16
+	// out		PORTD, r16		; aktivera pull-up-motstånd på port D
+	//clr		r16				; alla bitar i register r16 sätts till noll
+
+main_loop:
+	
+//andi	r17, 0b00000001	; 
+//cpi		r17, 0b00000001	; 
+//breq	blinka_even	
+
+blinka_uneven: 
+
+
+ldi r16, 0b10101010
+out PORTD, r16
+rcall kort_delay
+//clr r16
+//out PORTD, r16
+//rjmp main_loop
+
+blinka_even:
+
+//ser r16
+//out DDRD, r16
+ldi r16, 0b01010101
+out PORTD, r16
+rcall kort_delay
+//clr r16
+//out PORTD, r16
+rjmp main_loop
+
+kort_delay:					
+	ldi		r20, 255
+	ldi		r21, 255
+	ldi		r22, 3
+loop1:
+	dec		r20
+	brne	loop1
+loop2:
+	dec		r21
+	ldi		r20, 255
+	brne	loop1
+loop3:
+	dec		r22
+	ldi		r21, 255
+	brne	loop1
+	ret						
+
+stop:
+rjmp stop 
