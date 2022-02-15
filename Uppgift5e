@@ -1,0 +1,45 @@
+.include "m328pdef.inc"
+.cseg
+.org 0 
+
+rjmp RESET
+
+RESET:
+
+ser		r16	
+out		DDRD, r16
+clr		r16	
+out		DDRB, r16	
+ser		r16
+out		PORTB, r16
+ser r16
+out PORTD,r16
+rjmp main_loop
+	
+
+main_loop:
+clr r17
+out PORTD, r17
+
+in		r17, PINB	
+nop
+sbrs r17, 7
+rjmp	blinka_even	
+
+in r17, PINB
+nop
+sbrs r17, 6
+rjmp blinka_uneven	
+rjmp main_loop
+
+
+blinka_uneven: 
+ldi r16, 0b10101010
+out PORTD, r16
+rjmp main_loop
+
+blinka_even:
+ldi r16, 0b01010101
+out PORTD, r16
+rjmp main_loop
+
