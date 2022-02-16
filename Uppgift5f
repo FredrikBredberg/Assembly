@@ -1,0 +1,110 @@
+.include "m328pdef.inc"
+.cseg
+.org 0 
+
+
+
+RESET:
+
+	ser		r16	
+	out		DDRD, r16
+	clr		r16	
+	out		DDRB, r16	
+	ser		r16
+	out		PORTB, r16
+	ser r16
+	out PORTD,r16
+	ldi r16, 0b00000001
+	out PORTD, r16
+	rjmp main_loop
+
+
+restart:
+	ldi r16, 0b00000001
+	out PORTD, r16
+
+	sbrs r17, 7
+	rcall supersnabb
+
+	sbrs r17, 6
+	rcall ganskasnabb
+
+	rcall standarddelay
+	rcall main_loop
+
+
+main_loop:
+
+	in		r17, PINB
+	cpi r16, 0b10000000
+	breq restart
+	lsl r16
+	out PORTD, r16
+	
+
+	sbrs r17, 7
+	rcall supersnabb
+	sbrs r17, 6
+	rcall ganskasnabb
+	rcall standarddelay
+
+	
+	// andi r17, 0b11000000
+
+	rjmp main_loop
+
+standarddelay:					
+	ldi		r20, 155
+	ldi		r21, 155
+	ldi		r22, 3
+standarddelayloop1:
+	dec		r20
+	brne	standarddelayloop1
+standarddelayloop2:
+	dec		r21
+	ldi		r20, 155
+	brne	standarddelayloop1
+standarddelayloop3:
+	dec		r22
+	ldi		r21, 155
+	brne	standarddelayloop1
+	ret		
+
+supersnabb:					
+	ldi		r20, 50
+	ldi		r21, 50
+	ldi		r22, 3
+supersnabbloop1:
+	dec		r20
+	brne	supersnabbloop1
+supersnabbloop2:
+	dec		r21
+	ldi		r20, 50
+	brne	supersnabbloop1
+supersnabbloop3:
+	dec		r22
+	ldi		r21, 50
+	brne	supersnabbloop1
+	ret		
+
+
+	ganskasnabb:					
+	ldi		r20, 100
+	ldi		r21, 100
+	ldi		r22, 3
+ganskasnabbloop1:
+	dec		r20
+	brne	ganskasnabbloop1
+ganskasnabbloop2:
+	dec		r21
+	ldi		r20, 100
+	brne	ganskasnabbloop1
+ganskasnabbloop3:
+	dec		r22
+	ldi		r21, 100
+	brne	ganskasnabbloop1
+	ret		
+
+
+
+
