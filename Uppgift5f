@@ -23,11 +23,6 @@ restart:
 	ldi r16, 0b00000001
 	out PORTD, r16
 
-	sbrs r17, 7
-	rcall supersnabb
-
-	sbrs r17, 6
-	rcall ganskasnabb
 
 	rcall standarddelay
 	rcall main_loop
@@ -46,6 +41,8 @@ main_loop:
 	rcall supersnabb
 	sbrs r17, 6
 	rcall ganskasnabb
+
+
 	rcall standarddelay
 
 	
@@ -104,7 +101,4 @@ ganskasnabbloop3:
 	ldi		r21, 100
 	brne	ganskasnabbloop1
 	ret		
-
-
-
 
