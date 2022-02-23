@@ -2,11 +2,7 @@
 .cseg
 .org 0 
 
-	ldi XL, low(mystring2)
-	ldi XH, high(mystring2)
 
-	ldi ZL, low(mystring*2)
-	ldi ZH, high(mystring*2)
 
 UART_ENABLE:
 
@@ -27,16 +23,22 @@ UART_ENABLE:
 	out		PORTB, r16
 
 
+
+
 main_loop:
-	sbis PINB, 7
-	
-	rcall uart_send_string
-	
-	rcall delay500ms ; 0.5s delay
+	ldi XL, low(mystring2)
+	ldi XH, high(mystring2)
+
+	ldi ZL, low(mystring*2)
+	ldi ZH, high(mystring*2)
+
+
+
+	in  r16, PINB
+	sbrs r16, 7
+	;sbis PINB, 7
+	rjmp uart_send_string
 	rjmp main_loop
-
-
-
 
 
 
@@ -48,7 +50,7 @@ uart_send_string:
 	cpi r19, 0
 	breq main_loop
 	rcall uart_send_char
-	ret
+	rjmp uart_send_string
 
 
 delay500ms:		; 			
@@ -76,10 +78,12 @@ rjmp stop
 
 
 uart_send_char:
+	
 	lds r16, UCSR0A
 	sbrs r16, UDRE0
 	rjmp uart_send_char
 	sts UDR0, r19
+	rcall delay500ms
 	ret
 
 
@@ -87,4 +91,3 @@ mystring : .db "hello world", 0
 .dseg
 .org SRAM_START
 mystring2: .byte 12
-
