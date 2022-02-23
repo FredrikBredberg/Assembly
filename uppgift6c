@@ -1,0 +1,135 @@
+.include "m328pdef.inc"
+.cseg
+.org 0 
+
+
+
+UART_ENABLE:
+
+	ldi r16, 6
+	clr r17
+	sts UBRR0H, r17
+	sts UBRR0L, r16
+	clr r17
+	ldi r17, (1<<RXEN0) | (1<<TXEN0) ; Enable UART recieive/transmit
+	sts UCSR0B, r17
+	clr r17
+	ldi r17, (1<<USBS0) | (3<<UCSZ00)
+	sts UCSR0C, r17
+
+	clr		r16	
+	out		DDRB, r16	
+	ser		r16
+	out		PORTB, r16
+
+
+
+
+
+
+main_loop:
+	ldi XL, low(mystring2)
+	ldi XH, high(mystring2)
+
+	ldi ZL, low(mystring*2)
+	ldi ZH, high(mystring*2)
+
+	rcall uart_receive
+
+
+	in  r16, PINB
+	sbrs r16, 7
+	rjmp uart_send_string
+	rjmp main_loop
+
+
+	
+	out PORTD, r16
+
+
+uart_send_string:
+
+	lpm r19, Z+
+	st X+ , r19
+	cpi r19, 0
+	breq main_loop
+	rcall uart_send_char
+	rjmp uart_send_string
+
+
+delay500ms:		; 			
+	ldi		r20, 255
+	ldi		r21, 255
+	ldi		r22, 3
+delay500ms1:
+	dec		r20
+	brne	delay500ms1
+delay500ms2:
+	dec		r21
+	ldi		r20, 255
+	brne	delay500ms1
+delay500ms3:
+	dec		r22
+	ldi		r21, 255
+	brne	delay500ms1
+	ret	
+
+
+stop:
+rjmp stop
+
+
+
+
+uart_send_char:
+	
+	lds r16, UCSR0A
+	sbrs r16, UDRE0
+	rjmp uart_send_char
+	sts UDR0, r19
+	rcall delay500ms
+	ret
+
+UART_Receive:
+
+	lds r16, UCSR0A
+	sbrs r16, RXC0
+	rjmp UART_Receive_done
+	lds r16, UDR0
+
+	cpi r16, '1'
+	breq has_data
+
+	cpi r16, '0' 
+	breq no_data
+
+has_data: 
+	ser r16
+	out DDRD, r16
+	ldi r16, 0b11111111
+	rcall delay500ms
+	out PORTD, r16
+
+	rjmp UART_Receive_done
+
+no_data:
+	ser r16
+	out DDRD, r16
+	ldi r16, 0b00000000
+	out PORTD, r16
+
+	rjmp UART_Receive_done
+
+
+
+UART_Receive_done:
+	ret
+
+
+	
+
+
+mystring : .db "hello world", 0
+.dseg
+.org SRAM_START
+mystring2: .byte 12
