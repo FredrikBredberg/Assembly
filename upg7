@@ -33,24 +33,23 @@ wait_txrx:
 
 main_loop:
 	ldi r16, 0x39 ; load char to send
-	ser r17
-	cbi r17, 2
-	out PORTB, r17
-	sbi r17, 2 
+	rcall SSfix
 	rcall spi_txrx
 	rcall delay500ms ; 0.5s delay
 
 	ldi r16, 0x1D ; load char to send
+	rcall spi_txrx
+	rcall delay500ms ; 0.5s delay
+
+
+	rjmp main_loop
+
+SSfix:
 	ser r17
 	cbi r17, 2
 	out PORTB, r17
-	sbi r17, 2 
-	rcall spi_txrx
-
-	rcall delay500ms ; 0.5s delay
-	rjmp main_loop
-
-
+	ret
+	
 
 delay500ms:		; 			
 	ldi		r20, 255
