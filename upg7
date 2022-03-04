@@ -11,11 +11,12 @@ reset:
 	out PORTD,r16
 	rcall spi_master_init
 	rcall LCD_init
+
+
+
+	ldi ZL, low(mystring*2)
+	ldi ZH, high(mystring*2)
 	rjmp main_loop
-
-
-
-
 
 
 spi_master_init:
@@ -26,6 +27,7 @@ spi_master_init:
 	ldi r16, (1<<SPE) | (1<<MSTR) | (1<<SPR0)
 	out SPCR, r16
 	ret
+
 LCD_init:
 	cbi PORTB, 1
 	ldi r16, 0x39 ; load char to send
@@ -33,7 +35,6 @@ LCD_init:
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
-
 
 	ldi r16, 0x1D ; load char to send
 	cbi PORTB, 2
@@ -47,21 +48,17 @@ LCD_init:
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
 
-	
 	ldi r16, 0x6C ; load char to send
 	cbi PORTB, 2
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
 
-
 	ldi r16, 0x7C ; load char to send
 	cbi PORTB, 2
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
-
-	
 
 	ldi r16, 0x38 ; load char to send
 	cbi PORTB, 2
@@ -70,21 +67,17 @@ LCD_init:
 	rcall delay500ms ; 0.5s delay
 
 	
-
 	ldi r16, 0x0F ; load char to send
 	cbi PORTB, 2
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
 
-	
-
 	ldi r16, 0x01 ; load char to send
 	cbi PORTB, 2
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay
-
 
 	ldi r16, 0x06 ; load char to send
 	cbi PORTB, 2
@@ -104,17 +97,38 @@ wait_txrx:
 	ret
 
 main_loop:
-	
 
-
+	rcall send_text
+	rjmp done
+	rjmp stop
 	rjmp main_loop
 
-	
+send_text:
+
+	sbi PORTB, 1
+	cbi PORTb, 2
+
+	lpm r16, Z+
+	cpi r16, 0
+	breq done
+
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms
+
+	rjmp send_text
+
+done: 
+	ret	
+stop:
+	rjmp stop
+
+
 
 delay500ms:		; 			
 	ldi		r20, 255
 	ldi		r21, 255
-	ldi		r22, 3
+	ldi		r22, 2
 delay500ms1:
 	dec		r20
 	brne	delay500ms1
@@ -127,3 +141,9 @@ delay500ms3:
 	ldi		r21, 255
 	brne	delay500ms1
 	ret	
+
+mystring : 
+.db "hello world", 0
+.dseg
+.org SRAM_START
+mystring2: .byte 12
