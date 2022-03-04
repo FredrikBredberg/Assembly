@@ -99,7 +99,6 @@ wait_txrx:
 main_loop:
 
 	rcall send_text
-	rjmp done
 	rjmp stop
 	rjmp main_loop
 
