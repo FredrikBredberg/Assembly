@@ -9,21 +9,93 @@ reset:
 	out		PORTB, r16
 	ser r16
 	out PORTD,r16
+	rcall spi_master_init
+	rcall LCD_init
+	rjmp main_loop
+
+
 
 
 
 
 spi_master_init:
-
-	ldi r16, (1<<2) | (1<<3) | (1<<5)
-	out PORTB, r16
+	; SS, MOSI, SCK, RS pins outputs
+	ldi r16, (1<<2) | (1<<3) | (1<<5) | (1 << 1)
+	out DDRB, r16
+	; enable, master, clock rate fck/16
 	ldi r16, (1<<SPE) | (1<<MSTR) | (1<<SPR0)
 	out SPCR, r16
 	ret
+LCD_init:
+	cbi PORTB, 1
+	ldi r16, 0x39 ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+
+	ldi r16, 0x1D ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+	ldi r16, 0x50 ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
 	
+	ldi r16, 0x6C ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+
+	ldi r16, 0x7C ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+	
+
+	ldi r16, 0x38 ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+	
+
+	ldi r16, 0x0F ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+	
+
+	ldi r16, 0x01 ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay
+
+
+	ldi r16, 0x06 ; load char to send
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms ; 0.5s delay	
+	ret
 
 spi_txrx:
 	out SPDR, r16
+
 wait_txrx:
 	in r16, SPSR
 	sbrs r16, SPIF
@@ -32,23 +104,11 @@ wait_txrx:
 	ret
 
 main_loop:
-	ldi r16, 0x39 ; load char to send
-	rcall SSfix
-	rcall spi_txrx
-	rcall delay500ms ; 0.5s delay
-
-	ldi r16, 0x1D ; load char to send
-	rcall spi_txrx
-	rcall delay500ms ; 0.5s delay
+	
 
 
 	rjmp main_loop
 
-SSfix:
-	ser r17
-	cbi r17, 2
-	out PORTB, r17
-	ret
 	
 
 delay500ms:		; 			
