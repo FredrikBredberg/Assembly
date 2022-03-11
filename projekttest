@@ -25,7 +25,7 @@ reset:
 
 spi_master_init:
 	; SS, MOSI, MISO, SCK, RS pins outputs
-	ldi r16, (1<<2) | (1<<3) | (1<<5) | (1 << 1) | (1 << 4 )
+	ldi r16, (1<<2) | (1<<3) | (1<<5) | (1 << 1)  | (1 << 4 )
 	out DDRB, r16
 	; enable, master, clock rate fck/16
 	ldi r16, (1<<SPE) | (1<<MSTR) | (1<<SPR0)
@@ -98,12 +98,13 @@ main_loop:
 
 	rcall move_cursor
 	rcall read_temp_sensor
+	rcall print_temp
 
 	//rjmp stop
 	rjmp main_loop
 
  read_temp_sensor:
- /*
+ 
 	sbi PORTB, 6
 	rcall delay500ms
 	cbi PORTB, 6
@@ -128,23 +129,25 @@ main_loop:
 	rcall loop10s
 
 	ret
-*/
 
+	
 loop10s:
-	clr r18
-	clr r24
-	ldi r23, 24//ta bort till hit
+
+
+
 	cpi r23, 0b00001010 // r16 förut
 	brlo loop1s
 	inc r24
 	subi r23, 10
 //	rcall delay500ms
 //	rcall delay500ms
+
 	rjmp loop10s
+
+
 loop1s: 
 	cpi r23, 0
-	breq print_temp
-
+	breq done
 	inc r18
 	dec r23
 	rjmp loop1s
@@ -154,13 +157,14 @@ print_temp:
 	subi r24, -48 // största talet
 	mov r16, r24
 	cbi PORTB, 2
-	rcall delaymega
-	rcall delaymega
+	//rcall delaymega
+	//rcall delaymega
 	rcall spi_txrx
-	
+	sbi PORTB, 2
 	mov r16, r18
+	cbi PORTB, 2
 	rcall spi_txrx
-	rcall delay500ms
+	//rcall delay500ms
 	sbi PORTB, 2
 
 	ret
