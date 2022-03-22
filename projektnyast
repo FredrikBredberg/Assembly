@@ -105,6 +105,60 @@ LCD_init:
 	rcall delay500ms ; 0.5s delay	
 	ret
 
+EEPROM_read:
+
+	sbic EECR, EEPE
+	rjmp EEPROM_read
+	out EEARH, r18
+	out EEARL, r19
+	sbi EECR, EERE
+	in r17, EEDR
+	ret
+
+EEPROM_read_1:
+
+	sbic EECR, EEPE
+	rjmp EEPROM_read_1
+	out EEARH, r18
+	out EEARL, r19
+	sbi EECR, EERE
+	in r22, EEDR
+	ret
+
+EEPROM_write_1:
+	ldi r18, high(eeprom_data1)
+	ldi r19, low(eeprom_data1)
+	;väntar till att den tidigare writen ska bli klar
+	sbic EECR, EEPE
+	rjmp EEPROM_write_1
+	out EEARH, r18 
+	out EEARL, r19
+
+	out EEDR, r17
+
+	sbi EECR, EEMPE
+
+	sbi EECR, EEPE
+
+	ret
+
+EEPROM_write_2:
+
+	ldi r18, high(eeprom_data2)
+	ldi r19, low(eeprom_data2)
+	;väntar till att den tidigare writen ska bli klar
+	sbic EECR, EEPE
+	rjmp EEPROM_write_2
+	out EEARH, r18 
+	out EEARL, r19
+
+	out EEDR, r22
+
+	sbi EECR, EEMPE
+
+	sbi EECR, EEPE
+	ret
+
 
 ;------------------------------------------------ MAIN LOOOP ---------------
 main_loop:
@@ -112,7 +166,8 @@ main_loop:
 	rcall move_cursor
 	rcall read_temp_sensor
 	rcall convertASCII
-	rcall print_two_digits
+	;rcall print_temperature
+	rcall print_cur_temp
 
 	rcall move_cursor2
 	rcall max_limit
@@ -120,7 +175,7 @@ main_loop:
 
 	rcall move_cursor3
 	rcall min_limit
-	rcall convertASCIImini
+	rcall convertASCII
 	rcall print_min_temp
 
 	rjmp main_loop
@@ -148,6 +203,9 @@ move_cursor3:
 	ret
 
 max_limit:
+
+	in r17, PIND
+	in r18, PINB
 /*
 	ldi r19, 52 // största
 	ldi r21, 48 // minsta
@@ -185,41 +243,20 @@ limchanger2:
 	sbrs r17, 6
 	rjmp skip
 	inc XL
+	rcall EEPROM_write_1
 	
 skip:
 	sbrs r17, 5
 	rjmp skip2
 	dec XL
+	rcall EEPROM_write_1
 
 skip2:
 
-
-	ret
-;------------------------------------	
-convertASCIImini:
-	;push r23
 	mov r20, XL
-loop10smini:
-	
-	cpi r20, 10 // 
-	brlo loop1smini
-	inc r24
-	subi r20, 10
-
-
-	rjmp loop10smini
-
-loop1smini: 
-	cpi r20, 0
-	breq doneconvertmini
-	inc r18
-	dec r20
-	rjmp loop1smini
-
-doneconvertmini: 
-	;pop r23
-	ret	
-;------------------------------------	
+	clr r24
+	clr r18
+	ret
 
 	
  read_temp_sensor:
@@ -276,7 +313,6 @@ doneconvert:
 	;pop r23
 	ret	
 
-
 print_cur_temp:
 
 	rcall print_two_digits
@@ -284,8 +320,6 @@ print_cur_temp:
 
 print_min_temp:
 	
-	
-
 	rcall print_two_digits
 	ret
 
