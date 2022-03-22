@@ -105,6 +105,8 @@ LCD_init:
 	rcall delay500ms ; 0.5s delay	
 	ret
 
+
+;------------------------------------------------ MAIN LOOOP ---------------
 main_loop:
 
 	rcall move_cursor
@@ -113,16 +115,16 @@ main_loop:
 	rcall print_two_digits
 
 	rcall move_cursor2
-	rcall print_max_limit
-	rcall convertASCII
+	rcall max_limit
+	;rcall convertASCII
 
 	rcall move_cursor3
 	rcall min_limit
-	rcall convertASCIImin
+	rcall convertASCIImini
 	rcall print_min_temp
 
 	rjmp main_loop
-
+;------------------------------------------------ MAIN LOOOP ---------------
 
 move_cursor2:
 	ldi r16, 0b10010101
@@ -144,8 +146,9 @@ move_cursor3:
 	sbi PORTB, 1
 	rcall delaymega
 	ret
-print_max_limit:
 
+max_limit:
+/*
 	ldi r19, 52 // största
 	ldi r21, 48 // minsta
 	mov r16, r19
@@ -159,29 +162,64 @@ print_max_limit:
 
 	sbi PORTB, 2
 	ret
+	*/
 min_limit:
-	sbi PORTB, 2
 
 	in r17, PIND
-	sbrs r17, 6
-	rcall limchanger_low
-	
-	sbrs r17, 5
-	rcall limchanger_high
 
-	clr r20
+	cpi XL, 10
+	brge limchanger1
+	ldi XL, 10
+	cpi XL, 70
+	brlo limchanger2
+	
 	mov r20, XL
 
 	ret
-limchanger_low:
+limchanger1:
+	cpi XL, 70
+	brlo limchanger2
+	ldi XL, 70
+limchanger2:
+
+	sbrs r17, 6
+	rjmp skip
 	inc XL
-
-	ret
-
-limchanger_high:
-	dec XL
 	
+skip:
+	sbrs r17, 5
+	rjmp skip2
+	dec XL
+
+skip2:
+
+
 	ret
+;------------------------------------	
+convertASCIImini:
+	;push r23
+	mov r20, XL
+loop10smini:
+	
+	cpi r20, 10 // 
+	brlo loop1smini
+	inc r24
+	subi r20, 10
+
+
+	rjmp loop10smini
+
+loop1smini: 
+	cpi r20, 0
+	breq doneconvertmini
+	inc r18
+	dec r20
+	rjmp loop1smini
+
+doneconvertmini: 
+	;pop r23
+	ret	
+;------------------------------------	
 
 	
  read_temp_sensor:
@@ -214,11 +252,8 @@ limchanger_high:
 	
 	ret
 
-
 convertASCII:
 	;push r23
-
-
 loop10s:
 	
 	cpi r20, 10 // 
@@ -239,27 +274,26 @@ loop1s:
 
 doneconvert: 
 	;pop r23
-
 	ret	
 
 
-;print_cur_temp:
+print_cur_temp:
 
-;	rcall print_two_digits
-;	ret
+	rcall print_two_digits
+	ret
 
 print_min_temp:
-
-
+	
+	
 
 	rcall print_two_digits
 	ret
 
 print_max_temp:
 
+mov r16, r24
 
-; --------------------------------------------------------------
-; --------------------------------------------------------------
+
 
 
 print_two_digits:
@@ -440,3 +474,7 @@ mystring2: .byte 12
 Temperature2: .byte 2
 temp_string2: .byte 12
 temp_limits2: .byte 12
+
+.eseg
+eeprom_data1: .db 'E'
+eeprom_data2: .db 'B'
