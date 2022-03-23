@@ -70,7 +70,7 @@ minlim:
 
 spi_master_init:
 	; SS, MOSI, MISO, SCK, RS pins outputs
-	ldi r16, (1<<2) | (1<<3) | (1<<5) | (1 << 1)  | (0 << 4 ) | (1 << 6)
+	ldi r16, (1<<2) | (1<<3) | (1<<5) | (1 << 1)  | (0 << 4 ) | (1 << 6) 
 	out DDRB, r16
 	; enable, master, clock rate fck/16
 	ldi r16, (1<<SPE) | (1<<MSTR) | (1<<SPR0)
@@ -150,15 +150,21 @@ EEPROM_init:
 
 uart_init:
 
-	ldi r17, (1<<RXEN0)|(1<<TXEN0); 
+	ldi r22, 6	; 9600
+	clr r21
+	sts UBRR0H, r21
+	sts UBRR0L, r22
+	clr r22
+	clr r21
+
+	ldi r17, (1<<RXEN0)|(1<<TXEN0); enable UART recive and transmit 
 	sts UCSR0B, r17;
 
-	ldi r17, (1<<USBS0)|(3<<UCSZ00); 
+	ldi r17, (1<<USBS0)|(3<<UCSZ00); declare fram format: 8 data, 2 stop bits
 	sts UCSR0C, r17
 	clr r17
+
 	ret
-
-
 EEPROM_read:
 
 	sbic EECR, EEPE
@@ -291,7 +297,7 @@ max_limit:
 	in r19, PINB
 
 	cpi XH, 10
-	brge max_limchanger1
+	brsh max_limchanger1
 	ldi XH, 10
 
 	cpi XH, 70
@@ -300,26 +306,23 @@ max_limit:
 
 	mov r20, XH
 
-;	ret
-
 max_limchanger1:
 	cpi XH, 70
 	brlo max_limchanger2
 	ldi XH, 70
 
 
-
 max_limchanger2:
-	sbrs r19, 0
+	sbrc r19, 0
 	rjmp maxskip1
 	inc XH
-	;rcall EEPROM_write_2
+	rcall EEPROM_write_2
 
 maxskip1:
-	sbrs r17, 7
+	sbrc r17, 7
 	rjmp maxskip2
 	dec XH
-	;rcall EEPROM_write_2
+	rcall EEPROM_write_2
 
 
 maxskip2:
@@ -334,11 +337,10 @@ maxskip2:
 
 min_limit:
 
-	in r17, PIND
-	in r19, PINC
+
 
 	cpi XL, 10
-	brge min_limchanger1
+	brsh min_limchanger1
 	ldi XL, 10
 	cpi XL, 70
 	brlo min_limchanger2
@@ -351,18 +353,19 @@ min_limchanger1:
 	brlo min_limchanger2
 	ldi XL, 70
 min_limchanger2:
-
-	sbrs r17, 5
+	in r17, PIND
+	sbrc r17, 5
 	rjmp minskip1
 	inc XL
-	;rcall EEPROM_write_1
-	
+	rcall EEPROM_write_1
+
 
 minskip1:
-	sbrs r19, 5
+	in r19, PINC
+	sbrc r19, 5
 	rjmp minskip2
 	dec XL
-	;rcall EEPROM_write_1
+	rcall EEPROM_write_1
 
 minskip2:
 	mov r20, XL
@@ -376,11 +379,11 @@ alarm_check:
 	cp r23, XL
 	brlo lower_alarm
 	cp r23, XH
-	brge upper_alarm
+	brsh upper_alarm
 
 
 	cp r23, XL
-	brge turnoff_lower_alarm
+	brsh turnoff_lower_alarm
 	cp r23, XH
 	brlo turnoff_upper_alarm
 
@@ -391,6 +394,7 @@ lower_alarm:	; GRÖN DIOD
 	sbi DDRD, 2
 	sbi PORTD, 2
 
+	rcall uart_start
 	rcall send_alarm_on
 	rcall piezo1
 	ret
@@ -407,7 +411,7 @@ turnoff_lower_alarm: ; GRÖN DIOD
 	ret
 piezo1:
 	clr r16
-	ldi r16, 0b1111111
+	ldi r16, 0b1101111
 	out DDRD, r16
 
 	clr r16
@@ -448,10 +452,10 @@ piezo2:
     ldi r16, (1<<CS01) | (1<<CS00)
     out TCCR0B, r16
 
-    ldi r25, 100
+    ldi r25, 20
     out OCR0A, r18
 
-	ldi r18, 255
+	ldi r18, 20
     out OCR0A, r18
 
     ldi r18, (1<<COM0A0) | (1<<WGM01)
@@ -467,8 +471,7 @@ upper_alarm:
 	sbi DDRD, 3
 	sbi PORTD, 3  ; pd3 diod --röd
 	
-	;rcall move_cursor4
-;	rcall uart_start
+	rcall uart_start
 	rcall send_alarm_on
 	rcall piezo2
 
@@ -487,13 +490,13 @@ turnoff_upper_alarm: ; RÖD DIOD
 	
 ;---------------------------------------------------------------------------
 ;---------------------------------------------------------------------------
-;uart_start:
-;	ldi ZL, low(uart*2)
-;	ldi ZH, high(uart*2)
-;	rcall uart_send_str
-;	rcall delay_mega
+uart_start:
+	ldi ZL, low(uart_string*2)
+	ldi ZH, high(uart_string*2)
+	rcall uart_send_str
+	rcall delaymega
 
-;	ret
+	ret
  read_temp_sensor:
  
 	sbi PORTB, 6
@@ -616,6 +619,22 @@ send_text:
 ;---------------------------------------------------------------------------
 ;---------------------------------------------------------------------------
 
+uart_send_str:
+	lpm r16,Z+ 
+	cpi r16, 0
+	breq done
+	rcall uart_send_char
+	rjmp uart_send_str
+
+
+uart_send_char:
+	lds r18, UCSR0A
+	sbrs r18, UDRE0
+	rjmp uart_send_char
+	sts UDR0, r16 
+	ret
+
+
 tempterature_text:
 
 	ldi ZL, low(mystring*2)
@@ -674,13 +693,16 @@ send_alarm_on:
 
 	lpm r16, Z+
 	cpi r16, 0
-	breq done
+	breq done1
 
 	rcall spi_txrx
 	sbi PORTB, 2
 	rcall delay500ms
 
 	rjmp send_text
+
+done1:
+ret	
 
 send_alarm_off:
 	ldi ZL, low(alarm_off*2)
@@ -764,7 +786,10 @@ alarm_on:
 .db ": ON    ", 0 
 
 alarm_off:
-.db ": OFF    ", 0
+.db ": OFF  ", 0
+
+uart_string:
+.db " LARMET GÅR" , 0 
 
 .dseg
 .org SRAM_START
@@ -774,6 +799,7 @@ temp_string2: .byte 12
 temp_limits2: .byte 12
 alarm_on2: .byte 2
 alarm_off2: .byte 2
+uart_string2: .byte 2
 
 .eseg
 eeprom_data1: .db 'E'
