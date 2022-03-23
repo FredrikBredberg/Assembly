@@ -411,7 +411,7 @@ turnoff_lower_alarm: ; GRÖN DIOD
 	ret
 piezo1:
 	clr r16
-	ldi r16, 0b1101111
+	ldi r16, 0b11111101
 	out DDRD, r16
 
 	clr r16
@@ -443,7 +443,7 @@ piezodone:
 
 piezo2:
 	clr r16
-	ldi r16, 0b1111111
+	ldi r16, 0b11111011
 	out DDRD, r16
 
 	clr r16
