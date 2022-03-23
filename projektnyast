@@ -3,40 +3,70 @@
 .org 0 
 .def temperatur = r23 // rör ej
 
-reset:	
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
-	//ser r16
-	//out PORTD,r16
+reset:	
+	rcall timer_init
 	rcall spi_master_init
 	rcall LCD_init
 	rcall tempterature_text
 	rcall temp_lim
 	rcall send_next_temp
 	rcall button_init
-	rcall minlim
-
+	rcall minlim 
+	rcall EEPROM_init
+	rcall uart_init
 	rjmp main_loop
+
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
+timer_init:
+
+	ldi r16, (1<<WGM01) | (1<<COM0A0)                  
+    out TCCR0A, r16
+    ldi r16, (1<<CS01) | (1<<CS00)
+    out TCCR0B, r16
+
+    ldi r25, 77
+    out OCR0A, r18
+
+
+ret
+
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
 button_init:
 
 	ldi r22, 0b00001111
 	out DDRD, r22
-	ldi r22,0b11110000
+	ldi r22,0b11100000
 	out PORTD, r22
+
+
 	ldi r22, 0b11111110
 	out DDRB, r22
+
 	ldi r22,0b00000001
 	out PORTB, r22
 
+	ldi r22, 0b0000000
+	out DDRC, r22
+	ldi r22, 0b11111111
+	out PORTC, r22 
 	ret
+
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
 minlim:
 
-	ldi XL, 10 // minsta gränsen
-	ldi XH, 70 // högsta gränsen
+	ldi XL, 20 // minsta gränsen
+	ldi XH, 30 // högsta gränsen
 	ret
-
-
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
 spi_master_init:
 	; SS, MOSI, MISO, SCK, RS pins outputs
@@ -46,7 +76,8 @@ spi_master_init:
 	ldi r16, (1<<SPE) | (1<<MSTR) | (1<<SPR0)
 	out SPCR, r16
 	ret
-	
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 LCD_init:
 	cbi PORTB, 1
 	ldi r16, 0x39 ; load char to send
@@ -104,6 +135,29 @@ LCD_init:
 	sbi PORTB, 2
 	rcall delay500ms ; 0.5s delay	
 	ret
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
+EEPROM_init:
+	ldi r18, high(eeprom_data1) ; CHECK
+	ldi r19, low(eeprom_data1);  CHECK 
+	rcall EEPROM_read
+
+	ldi r18, high(eeprom_data2) ; CHECK
+	ldi r19, low(eeprom_data2);  CHECK
+	rcall EEPROM_read_1; 
+
+	ret
+
+uart_init:
+
+	ldi r17, (1<<RXEN0)|(1<<TXEN0); 
+	sts UCSR0B, r17;
+
+	ldi r17, (1<<USBS0)|(3<<UCSZ00); 
+	sts UCSR0C, r17
+	clr r17
+	ret
+
 
 EEPROM_read:
 
@@ -112,7 +166,7 @@ EEPROM_read:
 	out EEARH, r18
 	out EEARL, r19
 	sbi EECR, EERE
-	in r17, EEDR
+	in XL, EEDR
 	ret
 
 EEPROM_read_1:
@@ -122,65 +176,77 @@ EEPROM_read_1:
 	out EEARH, r18
 	out EEARL, r19
 	sbi EECR, EERE
-	in r22, EEDR
+	in XH, EEDR
 	ret
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
 EEPROM_write_1:
 	ldi r18, high(eeprom_data1)
 	ldi r19, low(eeprom_data1)
-	;väntar till att den tidigare writen ska bli klar
 	sbic EECR, EEPE
 	rjmp EEPROM_write_1
 	out EEARH, r18 
 	out EEARL, r19
 
-	out EEDR, r17
-
+	out EEDR, XL
 	sbi EECR, EEMPE
-
 	sbi EECR, EEPE
-
 	ret
 
 EEPROM_write_2:
 
 	ldi r18, high(eeprom_data2)
 	ldi r19, low(eeprom_data2)
-	;väntar till att den tidigare writen ska bli klar
 	sbic EECR, EEPE
 	rjmp EEPROM_write_2
 	out EEARH, r18 
 	out EEARL, r19
 
-	out EEDR, r22
-
+	out EEDR, XH
 	sbi EECR, EEMPE
-
 	sbi EECR, EEPE
 	ret
 
-
+;---------------------------------------------------------------------------
+; main loop - gör huvudjobbet.
 ;------------------------------------------------ MAIN LOOOP ---------------
 main_loop:
 
 	rcall move_cursor
 	rcall read_temp_sensor
 	rcall convertASCII
-	;rcall print_temperature
 	rcall print_cur_temp
 
 	rcall move_cursor2
 	rcall max_limit
-	;rcall convertASCII
+	rcall convertASCII
+	rcall print_max_temp
 
 	rcall move_cursor3
 	rcall min_limit
 	rcall convertASCII
 	rcall print_min_temp
 
+	rcall move_cursor4
+	rcall alarm_check
 	rjmp main_loop
-;------------------------------------------------ MAIN LOOOP ---------------
+;---------------------------------------------------------------------------
+;----------------------------------------------------------------------------
 
+move_cursor:
+	ldi r16, 0b10001101
+	cbi PORTB, 1
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	sbi PORTB, 1
+
+	ret
+
+;---------------------------------------------------------------------------
+;			Flyttar LCD-cursorn till stället där max-temp ska skrivas ut
+;---------------------------------------------------------------------------
 move_cursor2:
 	ldi r16, 0b10010101
 	cbi PORTB, 1
@@ -190,7 +256,12 @@ move_cursor2:
 	sbi PORTB, 1
 	rcall delaymega
 	ret
+;---------------------------------------------------------------------------
 
+
+;---------------------------------------------------------------------------
+;			Flyttar LCD-cursorn till stället där min-temp ska skrivas ut
+;---------------------------------------------------------------------------
 move_cursor3:
 
 	ldi r16, 0b10011101
@@ -199,66 +270,230 @@ move_cursor3:
 	rcall spi_txrx
 	sbi PORTB, 2
 	sbi PORTB, 1
-	rcall delaymega
 	ret
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+
+move_cursor4:
+
+	ldi r16, 0b10101000
+	cbi PORTB, 1
+	cbi PORTB, 2
+	rcall spi_txrx
+	sbi PORTB, 2
+	sbi PORTB, 1
+	ret
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
 
 max_limit:
-
 	in r17, PIND
-	in r18, PINB
-/*
-	ldi r19, 52 // största
-	ldi r21, 48 // minsta
-	mov r16, r19
-	cbi PORTB, 2
+	in r19, PINB
 
-	rcall spi_txrx
-	sbi PORTB, 2
-	mov r16, r21
-	cbi PORTB, 2
-	rcall spi_txrx
+	cpi XH, 10
+	brge max_limchanger1
+	ldi XH, 10
 
-	sbi PORTB, 2
+	cpi XH, 70
+	brlo max_limchanger2
+	ldi XH, 70
+
+	mov r20, XH
+
+;	ret
+
+max_limchanger1:
+	cpi XH, 70
+	brlo max_limchanger2
+	ldi XH, 70
+
+
+
+max_limchanger2:
+	sbrs r19, 0
+	rjmp maxskip1
+	inc XH
+	;rcall EEPROM_write_2
+
+maxskip1:
+	sbrs r17, 7
+	rjmp maxskip2
+	dec XH
+	;rcall EEPROM_write_2
+
+
+maxskip2:
+
+	mov r20, XH
+	clr r24
+	clr r18
 	ret
-	*/
+
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+
 min_limit:
 
 	in r17, PIND
+	in r19, PINC
 
 	cpi XL, 10
-	brge limchanger1
+	brge min_limchanger1
 	ldi XL, 10
 	cpi XL, 70
-	brlo limchanger2
-	
-	mov r20, XL
+	brlo min_limchanger2
 
-	ret
-limchanger1:
+
+	;ret
+
+min_limchanger1:
 	cpi XL, 70
-	brlo limchanger2
+	brlo min_limchanger2
 	ldi XL, 70
-limchanger2:
+min_limchanger2:
 
-	sbrs r17, 6
-	rjmp skip
-	inc XL
-	rcall EEPROM_write_1
-	
-skip:
 	sbrs r17, 5
-	rjmp skip2
+	rjmp minskip1
+	inc XL
+	;rcall EEPROM_write_1
+	
+
+minskip1:
+	sbrs r19, 5
+	rjmp minskip2
 	dec XL
-	rcall EEPROM_write_1
+	;rcall EEPROM_write_1
 
-skip2:
-
+minskip2:
 	mov r20, XL
 	clr r24
 	clr r18
 	ret
 
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+alarm_check:
+	cp r23, XL
+	brlo lower_alarm
+	cp r23, XH
+	brge upper_alarm
+
+
+	cp r23, XL
+	brge turnoff_lower_alarm
+	cp r23, XH
+	brlo turnoff_upper_alarm
+
+	ret
+
+lower_alarm:	; GRÖN DIOD
+
+	sbi DDRD, 2
+	sbi PORTD, 2
+
+	rcall send_alarm_on
+	rcall piezo1
+	ret
+
+
+turnoff_lower_alarm: ; GRÖN DIOD
+
+	cbi DDRD, 2
+	cbi PORTD, 2
+
+	rcall send_alarm_off
+	rcall turnpiezo1off
+
+	ret
+piezo1:
+	clr r16
+	ldi r16, 0b1111111
+	out DDRD, r16
+
+	clr r16
+	ldi r16, (1<<WGM01)                
+    out TCCR0A, r16
+    ldi r16, (1<<CS01) | (1<<CS00)
+    out TCCR0B, r16
+
+    ldi r25, 255
+    out OCR0A, r18
+
+	ldi r18, 255
+    out OCR0A, r18
+
+    ldi r18, (1<<COM0A0) | (1<<WGM01)
+    out TCCR0A, r18
+
+	ret
+
+turnpiezo1off:
+
+	ldi r16, 0b00000000
+	out DDRD, r16
 	
+	rjmp piezodone
+
+piezodone:
+	ret
+
+piezo2:
+	clr r16
+	ldi r16, 0b1111111
+	out DDRD, r16
+
+	clr r16
+	ldi r16, (1<<WGM01)                
+    out TCCR0A, r16
+    ldi r16, (1<<CS01) | (1<<CS00)
+    out TCCR0B, r16
+
+    ldi r25, 100
+    out OCR0A, r18
+
+	ldi r18, 255
+    out OCR0A, r18
+
+    ldi r18, (1<<COM0A0) | (1<<WGM01)
+    out TCCR0A, r18
+
+	pop r18
+	pop r25
+
+	ret
+
+upper_alarm:
+
+	sbi DDRD, 3
+	sbi PORTD, 3  ; pd3 diod --röd
+	
+	;rcall move_cursor4
+;	rcall uart_start
+	rcall send_alarm_on
+	rcall piezo2
+
+
+	ret
+
+turnoff_upper_alarm: ; RÖD DIOD
+
+	cbi DDRD, 3
+	cbi PORTD, 3
+
+	rcall send_alarm_off
+	rcall turnpiezo1off
+
+	rjmp piezodone
+	
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+;uart_start:
+;	ldi ZL, low(uart*2)
+;	ldi ZH, high(uart*2)
+;	rcall uart_send_str
+;	rcall delay_mega
+
+;	ret
  read_temp_sensor:
  
 	sbi PORTB, 6
@@ -285,19 +520,19 @@ skip2:
 
 	clr r20
 	mov r20, r23
-	
-	
 	ret
 
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+
 convertASCII:
-	;push r23
+	
 loop10s:
 	
 	cpi r20, 10 // 
 	brlo loop1s
 	inc r24
 	subi r20, 10
-
 
 	rjmp loop10s
 
@@ -310,9 +545,11 @@ loop1s:
 
 
 doneconvert: 
-	;pop r23
+	
 	ret	
 
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
 print_cur_temp:
 
 	rcall print_two_digits
@@ -322,13 +559,12 @@ print_min_temp:
 	
 	rcall print_two_digits
 	ret
+print_max_temp:	
 
-print_max_temp:
-
-mov r16, r24
-
-
-
+	rcall print_two_digits
+	ret
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
 
 print_two_digits:
 	subi r18, -48 // minsta talet
@@ -346,8 +582,10 @@ print_two_digits:
 
 done:
 	ret
-	
 
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+	
 spi_txrx:
 	out SPDR, r16
 
@@ -375,6 +613,9 @@ send_text:
 
 	rjmp send_text
 
+;---------------------------------------------------------------------------
+;---------------------------------------------------------------------------
+
 tempterature_text:
 
 	ldi ZL, low(mystring*2)
@@ -393,7 +634,6 @@ tempterature_text:
 
 	rjmp send_text
 
-
 send_next_temp:
 	ldi ZL, low(temp_string*2)
 	ldi ZH, high(temp_string*2)
@@ -410,16 +650,6 @@ send_next_temp:
 
 	rjmp send_text
 
-move_cursor:
-	ldi r16, 0b10001101
-	cbi PORTB, 1
-	cbi PORTB, 2
-	rcall spi_txrx
-	sbi PORTB, 2
-	sbi PORTB, 1
-
-	ret
-	
 temp_lim:
 	ldi ZL, low(temp_limits*2)
 	ldi ZH, high(temp_limits*2)
@@ -436,9 +666,42 @@ temp_lim:
 
 	rjmp send_text
 
+send_alarm_on:
+	ldi ZL, low(alarm_on*2)
+	ldi ZH, high(alarm_on*2)
+	sbi PORTB, 1
+	cbi PORTb, 2
 
+	lpm r16, Z+
+	cpi r16, 0
+	breq done
+
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms
+
+	rjmp send_text
+
+send_alarm_off:
+	ldi ZL, low(alarm_off*2)
+	ldi ZH, high(alarm_off*2)
+	sbi PORTB, 1
+	cbi PORTb, 2
+
+	lpm r16, Z+
+	cpi r16, 0
+	breq donesend
+
+	rcall spi_txrx
+	sbi PORTB, 2
+	rcall delay500ms
+
+	rjmp send_text
 stop:
 	rjmp stop
+
+donesend: 
+	ret
 
 delay500ms:	
 	push r23
@@ -487,20 +750,21 @@ delaymega3:
 	pop r23
 	ret	
 
-
 mystring : 
 .db "Temperature:",  0
 
 
 temp_limits:
-.db "    max: XX min:   ",0
+.db "    max:    min:   ",0
 
 temp_string:
-.db "    Alarm:XX ", 0
+.db "    Alarm: ", 0
 
+alarm_on:
+.db ": ON    ", 0 
 
-
-
+alarm_off:
+.db ": OFF    ", 0
 
 .dseg
 .org SRAM_START
@@ -508,6 +772,8 @@ mystring2: .byte 12
 Temperature2: .byte 2
 temp_string2: .byte 12
 temp_limits2: .byte 12
+alarm_on2: .byte 2
+alarm_off2: .byte 2
 
 .eseg
 eeprom_data1: .db 'E'
