@@ -150,7 +150,7 @@ EEPROM_init:
 
 uart_init:
 
-	ldi r22, 6	; 9600
+	ldi r22, 12	; 9600
 	clr r21
 	sts UBRR0H, r21
 	sts UBRR0L, r22
@@ -391,19 +391,24 @@ alarm_check:
 
 lower_alarm:	; GRÖN DIOD
 
-	sbi DDRD, 2
-	sbi PORTD, 2
+	
 
 	rcall uart_start
 	rcall send_alarm_on
 	rcall piezo1
+	rcall start_diod
 	ret
+start_diod:
 
+	sbi DDRD, 2
+	sbi PORTD, 2
+
+	ret
 
 turnoff_lower_alarm: ; GRÖN DIOD
 
-	cbi DDRD, 2
-	cbi PORTD, 2
+
+	cbi PORTD, 3
 
 	rcall send_alarm_off
 	rcall turnpiezo1off
@@ -411,7 +416,7 @@ turnoff_lower_alarm: ; GRÖN DIOD
 	ret
 piezo1:
 	clr r16
-	ldi r16, 0b11111101
+	ldi r16, 0b11111111
 	out DDRD, r16
 
 	clr r16
@@ -432,18 +437,17 @@ piezo1:
 	ret
 
 turnpiezo1off:
-
+	clr r16
 	ldi r16, 0b00000000
 	out DDRD, r16
+	clr r16
 	
-	rjmp piezodone
-
-piezodone:
 	ret
+
 
 piezo2:
 	clr r16
-	ldi r16, 0b11111011
+	ldi r16, 0b11111000
 	out DDRD, r16
 
 	clr r16
@@ -480,13 +484,13 @@ upper_alarm:
 
 turnoff_upper_alarm: ; RÖD DIOD
 
-	cbi DDRD, 3
-	cbi PORTD, 3
+	;cbi DDRD, 3
+	cbi PORTD, 2
 
 	rcall send_alarm_off
 	rcall turnpiezo1off
 
-	rjmp piezodone
+	ret
 	
 ;---------------------------------------------------------------------------
 ;---------------------------------------------------------------------------
@@ -803,4 +807,4 @@ uart_string2: .byte 2
 
 .eseg
 eeprom_data1: .db 'E'
-eeprom_data2: .db 'B'
+eeprom_data2: .db 'B';
